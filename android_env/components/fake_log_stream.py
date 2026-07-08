@@ -37,22 +37,30 @@ class FakeLogStream(log_stream.LogStream):
 
   def _get_stream_output(self) -> Generator[str, None, None]:
     if self._log_generator is not None:
-      for line in self._log_generator:
-        if not self._stream_is_alive:
-          break
+      yield from self._get_stream_from_generator(self._log_generator)
+    else:
+      yield from self._get_stream_from_queue()
+
+  def _get_stream_from_generator(
+      self, log_generator: Iterable[str]
+  ) -> Generator[str, None, None]:
+    for line in log_generator:
+      if not self._stream_is_alive:
+        break
+      if self._filter_fn and not self._filter_fn(self._filters, line):
+        continue
+      yield line
+
+  def _get_stream_from_queue(self) -> Generator[str, None, None]:
+    while self._stream_is_alive:
+      try:
+        # Use a timeout to allow checking if the stream is still alive.
+        line = self._queue.get(timeout=0.1)
         if self._filter_fn and not self._filter_fn(self._filters, line):
           continue
         yield line
-    else:
-      while self._stream_is_alive:
-        try:
-          # Use a timeout to allow checking if the stream is still alive.
-          line = self._queue.get(timeout=0.1)
-          if self._filter_fn and not self._filter_fn(self._filters, line):
-            continue
-          yield line
-        except queue.Empty:
-          continue
+      except queue.Empty:
+        continue
 
   def stop_stream(self) -> None:
     self._stream_is_alive = False

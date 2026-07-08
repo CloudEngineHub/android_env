@@ -110,6 +110,36 @@ class LogcatThreadTest(absltest.TestCase):
     self.assertFalse(logcat._should_stop.is_set())
     self.assertTrue(logcat._thread.daemon)
 
+  def test_line_ready_synchronization(self):
+    """Ensures that line_ready is cleared during processing."""
+    logcat = logcat_thread.LogcatThread(log_stream=self.fake_log_stream)
+    logcat.resume()
+
+    handler_called = threading.Event()
+    line_ready_during_handler = None
+
+    def my_handler(event: re.Pattern[str], match: re.Match[str]):
+      del event, match
+      nonlocal line_ready_during_handler
+      line_ready_during_handler = logcat.line_ready().is_set()
+      handler_called.set()
+
+    my_event = re.compile('Hello world')
+    listener = logcat_thread.EventListener(my_event, my_handler)
+    logcat.add_event_listener(listener)
+
+    self.assertTrue(logcat.line_ready().is_set())  # Initially set.
+    self.fake_log_stream.send_value(make_stdout('Hello world'))
+
+    handler_called.wait(timeout=1.0)
+    self.assertTrue(handler_called.is_set())
+    self.assertFalse(
+        line_ready_during_handler
+    )  # Should be cleared during handler.
+    self.assertTrue(
+        logcat.line_ready().is_set()
+    )  # Should be set again after handler.
+
 
 if __name__ == '__main__':
   absltest.main()

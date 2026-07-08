@@ -114,24 +114,31 @@ class LogcatThread:
     for line in self._log_stream.get_stream_output():
       if self._should_stop.is_set():
         break
+      self._process_line(line, logline_re)
 
-      if not line:  # Skip empty lines.
-        continue
+  def _process_line(self, line: str, logline_re: re.Pattern[str]) -> None:
+    """Processes a single log line."""
+    if not line:  # Skip empty lines.
+      return
 
-      matches = logline_re.match(line)
-      if not matches or len(matches.groups()) != 6:
-        continue
+    matches = logline_re.match(line)
+    if not matches:
+      return
 
-      # Make sure that values are not read until all listeners are notified.
-      self._line_ready.clear()
+    # Make sure that values are not read until all listeners are notified.
+    self._line_ready.clear()
 
-      # We're currently only consuming `message`, but we may use the other
-      # fields in the future.
-      content = matches.group('message')
-      for ev, listeners in self._listeners.items():
-        ev_matches = ev.match(content)
-        if ev_matches:
-          for listener in listeners:  # Notify listeners.
-            listener(ev, ev_matches)
+    # We're currently only consuming `message`, but we may use the other
+    # fields in the future.
+    content = matches.group('message')
+    self._notify_listeners(content)
 
-      self._line_ready.set()  # Allow consumers to read values.
+    self._line_ready.set()  # Allow consumers to read values.
+
+  def _notify_listeners(self, content: str) -> None:
+    """Notifies listeners matching the content."""
+    for ev, listeners in self._listeners.items():
+      ev_matches = ev.match(content)
+      if ev_matches:
+        for listener in listeners:  # Notify listeners.
+          listener(ev, ev_matches)
