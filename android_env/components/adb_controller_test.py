@@ -116,7 +116,9 @@ class AdbControllerTest(absltest.TestCase):
 
     # Arrange.
     mock_check_output.side_effect = [
-        subprocess.CalledProcessError(returncode=1, cmd='blah'),
+        subprocess.CalledProcessError(
+            returncode=1, cmd='blah', output=b'some error output'
+        ),
     ] + ['fake_output'.encode('utf-8')] * 4
     adb_controller = adb_controller_lib.AdbController(
         config_classes.AdbControllerConfig(
@@ -177,10 +179,16 @@ class AdbControllerTest(absltest.TestCase):
     restart_sequence = ['fake_output'.encode('utf-8')] * 3
     mock_check_output.side_effect = (
         [
-            subprocess.CalledProcessError(returncode=1, cmd='blah'),
+            subprocess.CalledProcessError(
+                returncode=1, cmd='blah', output=b'some error output'
+            ),
         ]
         + restart_sequence
-        + [subprocess.CalledProcessError(returncode=1, cmd='blah')]
+        + [
+            subprocess.CalledProcessError(
+                returncode=1, cmd='blah', output=b'some final error output'
+            )
+        ]
         # Don't restart if last call fails.
     )
     adb_controller = adb_controller_lib.AdbController(
@@ -244,7 +252,7 @@ class AdbControllerTest(absltest.TestCase):
 
     del mock_sleep
     mock_check_output.side_effect = subprocess.CalledProcessError(
-        returncode=1, cmd='blah'
+        returncode=1, cmd='blah', output=b'always failing'
     )
     adb_controller = adb_controller_lib.AdbController(
         config_classes.AdbControllerConfig(

@@ -128,30 +128,9 @@ class AdbController:
     latest_error = None
     for i in range(n_tries):
       try:
-        logging.info('Executing ADB command: [%s]', command_str)
-        cmd_output = subprocess.check_output(
-            command,
-            stderr=subprocess.STDOUT,
-            timeout=timeout,
-            env=self._os_env_vars,
-        )
-        logging.debug('ADB command output: %s', cmd_output)
-        return cmd_output
+        return self._execute_attempt(command, command_str, timeout)
       except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-        logging.exception(
-            'Failed to execute ADB command (try %d of %d): [%s]',
-            i + 1,
-            n_tries,
-            command_str,
-        )
-        if e.stdout is not None:
-          logging.error('**stdout**:')
-          for line in e.stdout.splitlines():
-            logging.error('    %s', line)
-        if e.stderr is not None:
-          logging.error('**stderr**:')
-          for line in e.stderr.splitlines():
-            logging.error('    %s', line)
+        self._log_command_error(e, command_str, i + 1, n_tries)
         latest_error = e
         if device_specific and i < n_tries - 1:
           self._restart_server(timeout=timeout)
@@ -160,3 +139,36 @@ class AdbController:
         f'Error executing adb command: [{command_str}]\n'
         f'Caused by: {latest_error}'
     ) from latest_error
+
+  def _execute_attempt(
+      self, command: list[str], command_str: str, timeout: float
+  ) -> bytes:
+    """Executes a single adb command attempt."""
+    logging.info('Executing ADB command: [%s]', command_str)
+    cmd_output = subprocess.check_output(
+        command,
+        stderr=subprocess.STDOUT,
+        timeout=timeout,
+        env=self._os_env_vars,
+    )
+    logging.debug('ADB command output: %s', cmd_output)
+    return cmd_output
+
+  def _log_command_error(
+      self,
+      error: subprocess.CalledProcessError | subprocess.TimeoutExpired,
+      command_str: str,
+      try_number: int,
+      total_tries: int,
+  ):
+    """Logs details of a failed adb command execution."""
+    logging.exception(
+        'Failed to execute ADB command (try %d of %d): [%s]',
+        try_number,
+        total_tries,
+        command_str,
+    )
+    if error.stdout is not None:
+      logging.error('**stdout**:')
+      for line in error.stdout.splitlines():
+        logging.error('    %s', line)
