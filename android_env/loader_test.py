@@ -13,10 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-
 import builtins
 import os
+from typing import cast
 from unittest import mock
 
 from absl.testing import absltest
@@ -27,6 +26,7 @@ from android_env.components import coordinator as coordinator_lib
 from android_env.components import device_settings as device_settings_lib
 from android_env.components import task_manager as task_manager_lib
 from android_env.components.simulators.emulator import emulator_simulator
+from android_env.components.simulators.emulator import tcp_ports
 from android_env.components.simulators.fake import fake_simulator
 from android_env.proto import task_pb2
 
@@ -37,10 +37,12 @@ class LoaderTest(absltest.TestCase):
   @mock.patch.object(emulator_simulator, 'EmulatorSimulator', autospec=True)
   @mock.patch.object(device_settings_lib, 'DeviceSettings', autospec=True)
   @mock.patch.object(coordinator_lib, 'Coordinator', autospec=True)
+  @mock.patch.object(tcp_ports, 'pick_emulator_ports', autospec=True)
   @mock.patch.object(builtins, 'open', autospec=True)
   def test_load_emulator(
       self,
       mock_open,
+      mock_pick_ports,
       mock_coordinator,
       mock_device_settings,
       mock_simulator_class,
@@ -71,6 +73,8 @@ class LoaderTest(absltest.TestCase):
 
     # Assert.
     self.assertIsInstance(env, env_interface.AndroidEnvInterface)
+    emu_config = cast(config_classes.EmulatorConfig, config.simulator)
+    mock_pick_ports.assert_called_once_with(emu_config.emulator_launcher)
     mock_simulator_class.assert_called_with(
         config=config_classes.EmulatorConfig(
             emulator_launcher=config_classes.EmulatorLauncherConfig(

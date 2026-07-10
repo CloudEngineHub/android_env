@@ -88,6 +88,7 @@ class A11yGrpcWrapper(base_wrapper.BaseWrapper):
       max_enable_networking_attempts: int = 10,
       latest_a11y_info_only: bool = False,
       grpc_server_ip: str = '10.0.2.2',
+      port: int | None = None,
   ):
     """Initializes wrapper.
 
@@ -121,6 +122,8 @@ class A11yGrpcWrapper(base_wrapper.BaseWrapper):
         a11y info. By default, this is set to the IP address of the AVD's host
         machine which is 10.0.2.2: See
         https://developer.android.com/studio/run/emulator-networking#networkaddresses.
+      port: Port for the gRPC server. If not specified, a free port will be
+        allocated automatically.
     """
     self._env = env
     self._grpc_server_ip = grpc_server_ip
@@ -141,7 +144,7 @@ class A11yGrpcWrapper(base_wrapper.BaseWrapper):
         self._servicer, self._server
     )
     server_credentials = grpc.local_server_credentials()
-    self._port = portpicker.pick_unused_port()
+    self._port = port or portpicker.pick_unused_port()
     logging.info('Using port %s', self._port)
     uri_address = f'[::]:{self._port}'
     self._server.add_secure_port(uri_address, server_credentials)

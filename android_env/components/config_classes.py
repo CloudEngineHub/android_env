@@ -100,10 +100,6 @@ class GPUMode(enum.Enum):
 class EmulatorLauncherConfig:
   """Config class for EmulatorLauncher."""
 
-  # NOTE: If `adb_port`, `emulator_console_port` and `grpc_port` are defined
-  # (i.e. not all equal to 0), it is assumed that the emulator they point to
-  # exists already and EmulatorLauncher will be skipped.
-
   # Filesystem path to the `emulator` binary.
   emulator_path: str = '~/Android/Sdk/emulator/emulator'
   # Filesystem path to the Android SDK root.
@@ -138,6 +134,11 @@ class EmulatorLauncherConfig:
   emulator_console_port: int = 0
   # Port for gRPC communication with the emulator.
   grpc_port: int = 0
+  # Whether to connect to an existing emulator.
+  # If True, we connect to the emulator at the specified ports and do not
+  # launch.
+  # If False, we launch a new emulator (ports must be pre-allocated).
+  connect_to_existing: bool = False
 
 
 @dataclasses.dataclass

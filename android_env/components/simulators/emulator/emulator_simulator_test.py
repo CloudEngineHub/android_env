@@ -30,11 +30,26 @@ from android_env.components.simulators.emulator import emulator_simulator
 from android_env.proto import state_pb2
 import grpc
 from PIL import Image
-import portpicker
 
 from android_env.proto import emulator_controller_pb2
 from android_env.proto import emulator_controller_pb2_grpc
 from android_env.proto import snapshot_service_pb2
+
+
+def _launcher_config(
+    adb_port: int = 5555,
+    emulator_console_port: int = 5554,
+    grpc_port: int = 1234,
+    connect_to_existing: bool = False,
+    **kwargs,
+) -> config_classes.EmulatorLauncherConfig:
+  return config_classes.EmulatorLauncherConfig(
+      adb_port=adb_port,
+      emulator_console_port=emulator_console_port,
+      grpc_port=grpc_port,
+      connect_to_existing=connect_to_existing,
+      **kwargs,
+  )
 
 
 class EmulatorSimulatorTest(parameterized.TestCase):
@@ -95,7 +110,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
 
   def test_adb_device_name_not_empty(self):
     config = config_classes.EmulatorConfig(
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -111,7 +126,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
 
     config = config_classes.EmulatorConfig(
         logfile_path='fake/logfile/path',
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -130,38 +145,6 @@ class EmulatorSimulatorTest(parameterized.TestCase):
       mock_open.assert_called_once_with('fake/logfile/path', 'rb')
       self.assertEqual(logs, 'fake_logs')
 
-  @mock.patch.object(portpicker, 'is_port_free', return_value=True)
-  def test_grpc_port(self, unused_mock_portpicker):
-
-    launcher_config = config_classes.EmulatorLauncherConfig(
-        tmp_dir=self.create_tempdir().full_path
-    )
-    config = config_classes.EmulatorConfig(
-        emulator_launcher=launcher_config,
-        adb_controller=config_classes.AdbControllerConfig(
-            adb_path='/my/adb',
-            adb_server_port=5037,
-        ),
-    )
-    simulator = emulator_simulator.EmulatorSimulator(config)
-    self.assertEqual(launcher_config.grpc_port, 8554)
-
-  @mock.patch.object(portpicker, 'is_port_free', return_value=False)
-  def test_grpc_port_unavailable(self, unused_mock_portpicker):
-
-    launcher_config = config_classes.EmulatorLauncherConfig(
-        tmp_dir=self.create_tempdir().full_path
-    )
-    config = config_classes.EmulatorConfig(
-        emulator_launcher=launcher_config,
-        adb_controller=config_classes.AdbControllerConfig(
-            adb_path='/my/adb',
-            adb_server_port=5037,
-        ),
-    )
-    simulator = emulator_simulator.EmulatorSimulator(config)
-    self.assertNotEqual(launcher_config.grpc_port, 8554)
-
   def test_launch_operation_order(self):
     """Makes sure that adb_controller is started before Emulator is launched."""
 
@@ -174,7 +157,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
         lambda: call_order.append('launch_emulator_process')
     )
     config = config_classes.EmulatorConfig(
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -193,7 +176,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
 
   def test_close(self):
     config = config_classes.EmulatorConfig(
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -216,7 +199,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
         ValueError,
         emulator_simulator.EmulatorSimulator,
         config=config_classes.EmulatorConfig(
-            emulator_launcher=config_classes.EmulatorLauncherConfig(
+            emulator_launcher=_launcher_config(
                 grpc_port=1234, tmp_dir=self.create_tempdir().full_path
             ),
             adb_controller=config_classes.AdbControllerConfig(
@@ -228,9 +211,35 @@ class EmulatorSimulatorTest(parameterized.TestCase):
         ),
     )
 
+  @parameterized.parameters(
+      (0, 5554, 1234),
+      (5555, 0, 1234),
+      (5555, 5554, 0),
+      (-1, 5554, 1234),
+      (5555, -1, 1234),
+      (5555, 5554, -1),
+  )
+  def test_value_error_if_ports_not_positive(
+      self, adb_port, console_port, grpc_port
+  ):
+    config = config_classes.EmulatorConfig(
+        emulator_launcher=_launcher_config(
+            adb_port=adb_port,
+            emulator_console_port=console_port,
+            grpc_port=grpc_port,
+            tmp_dir=self.create_tempdir().full_path,
+        ),
+        adb_controller=config_classes.AdbControllerConfig(
+            adb_path='/my/adb',
+            adb_server_port=5037,
+        ),
+    )
+    with self.assertRaisesRegex(ValueError, 'Ports must be allocated and set'):
+      emulator_simulator.EmulatorSimulator(config)
+
   def test_launch_attempt_reboot(self):
     config = config_classes.EmulatorConfig(
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -256,7 +265,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
 
   def test_launch_attempt_reinstall_after_zero_attempts(self):
     config = config_classes.EmulatorConfig(
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -283,7 +292,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
 
   def test_launch_attempt_reinstall(self):
     config = config_classes.EmulatorConfig(
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -315,7 +324,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
 
   def test_get_screenshot(self):
     config = config_classes.EmulatorConfig(
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -343,7 +352,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
   def test_get_screenshot_reconnects_on_grpc_error(self):
     config = config_classes.EmulatorConfig(
         interaction_rate_sec=0.0,
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -389,7 +398,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
 
   def test_load_state(self):
     config = config_classes.EmulatorConfig(
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -443,7 +452,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
 
   def test_save_state(self):
     config = config_classes.EmulatorConfig(
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -485,7 +494,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
 
   def test_send_touch(self):
     config = config_classes.EmulatorConfig(
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -564,7 +573,7 @@ class EmulatorSimulatorTest(parameterized.TestCase):
   )
   def test_send_key(self, os_name, expected_code_type):
     config = config_classes.EmulatorConfig(
-        emulator_launcher=config_classes.EmulatorLauncherConfig(
+        emulator_launcher=_launcher_config(
             grpc_port=1234, tmp_dir=self.create_tempdir().full_path
         ),
         adb_controller=config_classes.AdbControllerConfig(
@@ -634,6 +643,30 @@ class EmulatorSimulatorTest(parameterized.TestCase):
     self.assertSequenceEqual(
         expected_calls, simulator._emulator_stub.sendKey.call_args_list
     )
+
+  def test_connect_to_existing(self):
+    config = config_classes.EmulatorConfig(
+        emulator_launcher=_launcher_config(
+            adb_port=5555,
+            emulator_console_port=5554,
+            grpc_port=1234,
+            connect_to_existing=True,
+            tmp_dir=self.create_tempdir().full_path,
+        ),
+        adb_controller=config_classes.AdbControllerConfig(
+            adb_path='/my/adb',
+            adb_server_port=5037,
+        ),
+    )
+    simulator = emulator_simulator.EmulatorSimulator(config)
+    self.addCleanup(simulator.close)
+
+    # Launch should not try to launch the process, but should connect.
+    simulator.launch()
+
+    self.assertIsNone(simulator._launcher)
+    # It should still establish channel.
+    self.assertIsNotNone(simulator._emulator_stub)
 
 
 if __name__ == '__main__':

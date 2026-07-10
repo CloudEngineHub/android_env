@@ -34,7 +34,6 @@ from android_env.proto import state_pb2
 import grpc
 import immutabledict
 import numpy as np
-import portpicker
 
 from android_env.proto import emulator_controller_pb2
 from android_env.proto import emulator_controller_pb2_grpc
@@ -52,50 +51,6 @@ _KEYCODE_TYPE_BY_SYSTEM: Mapping[
     'Windows': emulator_controller_pb2.KeyboardEvent.KeyCodeType.Win,
     'Darwin': emulator_controller_pb2.KeyboardEvent.KeyCodeType.Mac,
 })
-
-
-def _is_existing_emulator_provided(
-    launcher_config: config_classes.EmulatorLauncherConfig,
-) -> bool:
-  """Returns true if all necessary args were provided."""
-
-  return bool(
-      launcher_config.adb_port
-      and launcher_config.emulator_console_port
-      and launcher_config.grpc_port
-  )
-
-
-def _pick_adb_port() -> int:
-  """Tries to pick a port in the recommended range 5555-5585.
-
-  If no such port can be found, will return a random unused port. More info:
-  https://developer.android.com/studio/command-line/adb#howadbworks.
-
-  Returns:
-    port: an available port for adb.
-  """
-
-  for p in range(5555, 5587, 2):
-    if portpicker.is_port_free(p):
-      return p
-  return portpicker.pick_unused_port()
-
-
-def _pick_emulator_grpc_port() -> int:
-  """Tries to pick the recommended port for grpc.
-
-  If no such port can be found, will return a random unused port. More info:
-  https://android.googlesource.com/platform/external/qemu/+/emu-master-dev/android/android-grpc/docs/.
-
-  Returns:
-    port: an available port for emulator grpc.
-  """
-
-  if portpicker.is_port_free(8554):
-    return 8554
-  else:
-    return portpicker.pick_unused_port()
 
 
 class EmulatorBootError(errors.SimulatorError):
@@ -159,17 +114,23 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
 
     # If adb_port, console_port and grpc_port are all already provided,
     # we assume the emulator already exists and there's no need to launch.
-    if _is_existing_emulator_provided(self._config.emulator_launcher):
-      self._existing_emulator_provided = True
-      logging.info('Connecting to existing emulator "%r"',
-                   self.adb_device_name())
-    else:
-      self._existing_emulator_provided = False
-      self._config.emulator_launcher.adb_port = _pick_adb_port()
-      self._config.emulator_launcher.emulator_console_port = (
-          portpicker.pick_unused_port()
+    if self._config.emulator_launcher.connect_to_existing:
+      logging.info(
+          'Connecting to existing emulator "%r"', self.adb_device_name()
       )
-      self._config.emulator_launcher.grpc_port = _pick_emulator_grpc_port()
+    else:
+      launcher_config = self._config.emulator_launcher
+      if (
+          launcher_config.adb_port <= 0
+          or launcher_config.emulator_console_port <= 0
+          or launcher_config.grpc_port <= 0
+      ):
+        raise ValueError(
+            'Ports must be allocated and set in config before instantiating '
+            f'EmulatorSimulator. Got: ADB={launcher_config.adb_port}, '
+            f'Console={launcher_config.emulator_console_port}, '
+            f'gRPC={launcher_config.grpc_port}'
+        )
 
     self._channel = None
     self._emulator_stub: emulator_controller_pb2_grpc.EmulatorControllerStub | None = (
@@ -202,7 +163,7 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
     )
 
     # If necessary, create EmulatorLauncher.
-    if self._existing_emulator_provided:
+    if self._config.emulator_launcher.connect_to_existing:
       self._logfile_path = self._config.logfile_path or None
       self._launcher = None
     else:

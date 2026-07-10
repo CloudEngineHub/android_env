@@ -29,6 +29,7 @@ from android_env.wrappers import a11y_grpc_wrapper
 import dm_env
 import grpc
 import numpy as np
+import portpicker
 
 
 def empty_forest() -> (
@@ -399,6 +400,42 @@ class A11yGrpcWrapperTest(parameterized.TestCase):
     ) as mock_configure_grpc:
       wrapped_env.reset()
       mock_configure_grpc.assert_called_once()
+
+  @mock.patch.object(
+      a11y_pb2_grpc, 'add_A11yServiceServicer_to_server', autospec=True
+  )
+  @mock.patch.object(portpicker, 'pick_unused_port', return_value=1111)
+  @mock.patch.object(grpc, 'server', autospec=True)
+  def test_custom_port(
+      self,
+      mock_grpc_server,
+      mock_pick_unused_port,
+      unused_mock_add_servicer,
+  ):
+    base_env = mock.create_autospec(
+        env_interface.AndroidEnvInterface, instance=True
+    )
+    base_env.stats.return_value = {'relaunch_count': 0}
+    base_env.execute_adb_call.return_value = _ok_response()
+
+    # Case 1: Pass a custom port. It should use it and NOT call portpicker.
+    wrapped_env = a11y_grpc_wrapper.A11yGrpcWrapper(base_env, port=2222)
+    self.assertEqual(wrapped_env.get_port(), 2222)
+    mock_pick_unused_port.assert_not_called()
+    mock_grpc_server.return_value.add_secure_port.assert_called_with(
+        '[::]:2222', mock.ANY
+    )
+
+    # Reset mock for next case
+    mock_grpc_server.return_value.add_secure_port.reset_mock()
+
+    # Case 2: Do not pass a port. It should call portpicker.
+    wrapped_env_default = a11y_grpc_wrapper.A11yGrpcWrapper(base_env)
+    self.assertEqual(wrapped_env_default.get_port(), 1111)
+    mock_pick_unused_port.assert_called_once()
+    mock_grpc_server.return_value.add_secure_port.assert_called_with(
+        '[::]:1111', mock.ANY
+    )
 
   @mock.patch.object(
       a11y_pb2_grpc, 'add_A11yServiceServicer_to_server', autospec=True
