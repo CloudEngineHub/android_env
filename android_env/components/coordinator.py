@@ -15,9 +15,11 @@
 
 """Coordinator handles interaction between internal components of AndroidEnv."""
 
+from __future__ import annotations
+
 import copy
 import time
-from typing import Any
+from typing import Any, Final, final
 
 from absl import logging
 from android_env.components import action_fns
@@ -33,6 +35,7 @@ import dm_env
 import numpy as np
 
 
+@final
 class Coordinator:
   """Handles interaction between internal components of AndroidEnv."""
 
@@ -50,10 +53,14 @@ class Coordinator:
       task_manager: The TaskManager, responsible for coordinating RL tasks.
       config: Settings to customize this Coordinator.
     """
-    self._simulator = simulator
-    self._task_manager = task_manager
-    self._config = config or config_classes.CoordinatorConfig()
-    self._device_settings = device_settings
+    self._simulator: Final[base_simulator.BaseSimulator] = simulator
+    self._task_manager: Final[task_manager_lib.TaskManager] = task_manager
+    self._config: Final[config_classes.CoordinatorConfig] = (
+        config or config_classes.CoordinatorConfig()
+    )
+    self._device_settings: Final[device_settings_lib.DeviceSettings] = (
+        device_settings
+    )
     self._adb_call_parser: adb_call_parser.AdbCallParser | None = None
 
     # Initialize stats.

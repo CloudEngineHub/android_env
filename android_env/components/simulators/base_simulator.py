@@ -15,10 +15,13 @@
 
 """A base class for talking to different types of Android simulators."""
 
+from __future__ import annotations
+
 import abc
 from collections.abc import Callable
 import threading
 import time
+from typing import final
 
 from absl import logging
 from android_env.components import adb_controller
@@ -65,6 +68,7 @@ class BaseSimulator(metaclass=abc.ABCMeta):
   def create_log_stream(self) -> log_stream.LogStream:
     """Creates a stream of logs from the simulator."""
 
+  @final
   def launch(self) -> None:
     """Starts the simulator."""
 
@@ -148,6 +152,7 @@ class BaseSimulator(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError('This simulator does not support save_state()')
 
+  @final
   def get_screenshot(self) -> np.ndarray:
     """Returns pixels representing the current screenshot of the simulator."""
 
@@ -174,6 +179,7 @@ class BaseSimulator(metaclass=abc.ABCMeta):
       self._interaction_thread.join()
 
 
+@final
 class InteractionThread(threading.Thread):
   """A thread that gets screenshot in the background."""
 

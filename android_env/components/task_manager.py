@@ -15,6 +15,8 @@
 
 """TaskManager handles all events and information related to the task."""
 
+from __future__ import annotations
+
 import ast
 import collections
 from collections.abc import Callable, Iterable
@@ -25,7 +27,7 @@ import json
 import re
 import threading
 import time
-from typing import Any
+from typing import Any, Final, final
 
 from absl import logging
 from android_env.components import adb_call_parser as adb_call_parser_lib
@@ -40,6 +42,7 @@ import dm_env
 import numpy as np
 
 
+@final
 class TaskManager:
   """Handles all events and information related to the task."""
 
@@ -55,9 +58,11 @@ class TaskManager:
       config: Configuration for this instance.
     """
 
-    self._task = task
-    self._config = config or config_classes.TaskManagerConfig()
-    self._lock = threading.Lock()
+    self._task: Final[task_pb2.Task] = task
+    self._config: Final[config_classes.TaskManagerConfig] = (
+        config or config_classes.TaskManagerConfig()
+    )
+    self._lock: Final[threading.Lock] = threading.Lock()
     self._logcat_thread: logcat_thread.LogcatThread | None = None
     self._dumpsys_thread: dumpsys_thread.DumpsysThread | None = None
     self._setup_step_interpreter: (

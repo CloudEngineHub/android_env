@@ -15,12 +15,14 @@
 
 """A class that manages an Android Emulator."""
 
+from __future__ import annotations
+
 from collections.abc import Callable, Mapping
 import functools
 import os
 import platform
 import time
-from typing import Any
+from typing import Any, Final, final
 
 from absl import logging
 from android_env.components import adb_controller
@@ -42,10 +44,10 @@ from android_env.proto import snapshot_service_pb2_grpc
 from google.protobuf import empty_pb2
 
 
-_DEFAULT_SNAPSHOT_NAME: str = 'default_snapshot'
+_DEFAULT_SNAPSHOT_NAME: Final[str] = 'default_snapshot'
 
-_KEYCODE_TYPE_BY_SYSTEM: Mapping[
-    str, emulator_controller_pb2.KeyboardEvent.KeyCodeType
+_KEYCODE_TYPE_BY_SYSTEM: Final[
+    Mapping[str, emulator_controller_pb2.KeyboardEvent.KeyCodeType]
 ] = immutabledict.immutabledict({
     'Linux': emulator_controller_pb2.KeyboardEvent.KeyCodeType.XKB,
     'Windows': emulator_controller_pb2.KeyboardEvent.KeyCodeType.Win,
@@ -89,6 +91,7 @@ def _reconnect_on_grpc_error(
   return wrapper
 
 
+@final
 class EmulatorSimulator(base_simulator.BaseSimulator):
   """Controls an Android Emulator."""
 

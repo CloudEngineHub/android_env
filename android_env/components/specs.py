@@ -15,13 +15,19 @@
 
 """Base specs for AndroidEnv."""
 
+from __future__ import annotations
+
+from typing import Any, Final, Mapping
+
 from android_env.components import action_type
 from android_env.proto import task_pb2
 from dm_env import specs
 import numpy as np
 
 
-_PROTO_DTYPE_TO_NUMPY_DTYPE = {
+_PROTO_DTYPE_TO_NUMPY_DTYPE: Final[
+    Mapping[task_pb2.ArraySpec.DataType.ValueType, np.dtype | type[Any]]
+] = {
     task_pb2.ArraySpec.DataType.FLOAT: np.float32,
     task_pb2.ArraySpec.DataType.DOUBLE: np.float64,
     task_pb2.ArraySpec.DataType.INT8: np.int8,

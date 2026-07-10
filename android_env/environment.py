@@ -15,7 +15,9 @@
 
 """Android environment implementation."""
 
-from typing import Any
+from __future__ import annotations
+
+from typing import Any, Final, final
 
 from absl import logging
 from android_env import env_interface
@@ -29,6 +31,7 @@ import dm_env
 import numpy as np
 
 
+@final
 class AndroidEnv(env_interface.AndroidEnvInterface):
   """An RL environment that interacts with Android apps."""
 
@@ -40,9 +43,9 @@ class AndroidEnv(env_interface.AndroidEnvInterface):
   ):
     """Initializes the state of this AndroidEnv object."""
 
-    self._simulator = simulator
-    self._coordinator = coordinator
-    self._task_manager = task_manager
+    self._simulator: Final[base_simulator.BaseSimulator] = simulator
+    self._coordinator: Final[coordinator_lib.Coordinator] = coordinator
+    self._task_manager: Final[task_manager_lib.TaskManager] = task_manager
     self._latest_action = {}
     self._latest_observation = {}
     self._latest_extras = {}
