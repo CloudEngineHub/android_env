@@ -22,7 +22,7 @@ from android_env import env_interface
 from android_env.wrappers import gym_wrapper
 import dm_env
 from dm_env import specs
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 
 
@@ -68,12 +68,12 @@ class GymInterfaceWrapperTest(absltest.TestCase):
   def test_render(self):
     self._base_env.step.return_value = self._fake_ts
     _ = self._wrapped_env.step(action=np.zeros(shape=(1,)))
-    image = self._wrapped_env.render(mode='rgb_array')
+    image = self._wrapped_env.render()
     self.assertTrue(np.array_equal(image, np.ones(shape=(2, 3))))
 
-  def test_render_error(self):
-    with self.assertRaises(ValueError):
-      _ = self._wrapped_env.render(mode='human')
+  def test_render_none_before_step(self):
+    image = self._wrapped_env.render()
+    self.assertIsNone(image)
 
   def test_reset(self):
     self._base_env.reset.return_value = dm_env.TimeStep(
@@ -81,15 +81,39 @@ class GymInterfaceWrapperTest(absltest.TestCase):
         observation={'pixels': np.ones(shape=(2, 3))},
         reward=10.0,
         discount=1.0)
-    obs = self._wrapped_env.reset()
+    obs, info = self._wrapped_env.reset()
     self._base_env.reset.assert_called_once()
     self.assertTrue(np.array_equal(obs['pixels'], np.ones(shape=(2, 3))))
+    self.assertIn('discount', info)
 
-  def test_step(self):
+  def test_step_mid(self):
     self._base_env.step.return_value = self._fake_ts
-    obs, _, _, _ = self._wrapped_env.step(action=np.zeros(shape=(1,)))
+    obs, reward, terminated, truncated, info = self._wrapped_env.step(
+        action=np.zeros(shape=(1,)))
     self._base_env.step.assert_called_once()
     self.assertTrue(np.array_equal(obs['pixels'], np.ones(shape=(2, 3))))
+    self.assertEqual(reward, 10.0)
+    self.assertFalse(terminated)
+    self.assertFalse(truncated)
+    self.assertIn('discount', info)
+
+  def test_step_terminated(self):
+    ts = dm_env.termination(
+        reward=5.0, observation={'pixels': np.ones(shape=(2, 3))})
+    self._base_env.step.return_value = ts
+    _, _, terminated, truncated, _ = self._wrapped_env.step(
+        action=np.zeros(shape=(1,)))
+    self.assertTrue(terminated)
+    self.assertFalse(truncated)
+
+  def test_step_truncated(self):
+    ts = dm_env.truncation(
+        reward=3.0, observation={'pixels': np.ones(shape=(2, 3))})
+    self._base_env.step.return_value = ts
+    _, _, terminated, truncated, _ = self._wrapped_env.step(
+        action=np.zeros(shape=(1,)))
+    self.assertFalse(terminated)
+    self.assertTrue(truncated)
 
   def test_spec_to_space(self):
 
