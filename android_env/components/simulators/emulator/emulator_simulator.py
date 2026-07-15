@@ -34,7 +34,6 @@ from android_env.components.simulators import base_simulator
 from android_env.components.simulators.emulator import emulator_launcher
 from android_env.proto import state_pb2
 import grpc
-import immutabledict
 import numpy as np
 
 from android_env.proto import emulator_controller_pb2
@@ -48,11 +47,11 @@ _DEFAULT_SNAPSHOT_NAME: Final[str] = 'default_snapshot'
 
 _KEYCODE_TYPE_BY_SYSTEM: Final[
     Mapping[str, emulator_controller_pb2.KeyboardEvent.KeyCodeType]
-] = immutabledict.immutabledict({
+] = {
     'Linux': emulator_controller_pb2.KeyboardEvent.KeyCodeType.XKB,
     'Windows': emulator_controller_pb2.KeyboardEvent.KeyCodeType.Win,
     'Darwin': emulator_controller_pb2.KeyboardEvent.KeyCodeType.Mac,
-})
+}
 
 
 class EmulatorBootError(errors.SimulatorError):
@@ -136,9 +135,9 @@ class EmulatorSimulator(base_simulator.BaseSimulator):
         )
 
     self._channel = None
-    self._emulator_stub: emulator_controller_pb2_grpc.EmulatorControllerStub | None = (
-        None
-    )
+    self._emulator_stub: (
+        emulator_controller_pb2_grpc.EmulatorControllerStub | None
+    ) = None
     self._snapshot_stub = None
     # Set the image format to RGBA. The width and height of the returned
     # screenshots will use the device's width and height.

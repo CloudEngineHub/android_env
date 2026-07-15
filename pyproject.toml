@@ -22,12 +22,12 @@ dependencies = [
     "portpicker>=1.2.0",
     "protobuf>=2.6",
     "pygame",
+    "pillow",
 ]
 
 [project.optional-dependencies]
 testing = [
     "gymnasium",
-    "pillow",
     "pytype",
 ]
 acme = ["dm-acme"]
