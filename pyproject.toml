@@ -26,12 +26,12 @@ dependencies = [
 
 [project.optional-dependencies]
 testing = [
-    "gym",
+    "gymnasium",
     "pillow",
     "pytype",
 ]
 acme = ["dm-acme"]
-gym = ["gym"]
+gym = ["gymnasium"]
 
 [project.urls]
 repository = "https://github.com/deepmind/android_env"
