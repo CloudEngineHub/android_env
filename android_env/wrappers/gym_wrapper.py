@@ -21,6 +21,7 @@ import dm_env
 from dm_env import specs
 import gymnasium as gym
 from gymnasium import spaces
+from gymnasium.core import RenderFrame
 import numpy as np
 
 
@@ -72,7 +73,7 @@ class GymInterfaceWrapper(gym.Env):
 
     raise ValueError('Unknown type for specs: {}'.format(spec))
 
-  def render(self) -> np.ndarray | None:
+  def render(self) -> RenderFrame | list[RenderFrame] | None:
     """Renders the environment."""
     if self.render_mode == 'rgb_array':
       if self._latest_observation is None:

@@ -69,6 +69,7 @@ class GymInterfaceWrapperTest(absltest.TestCase):
     self._base_env.step.return_value = self._fake_ts
     _ = self._wrapped_env.step(action=np.zeros(shape=(1,)))
     image = self._wrapped_env.render()
+    self.assertIsNotNone(image)
     self.assertTrue(np.array_equal(image, np.ones(shape=(2, 3))))
 
   def test_render_none_before_step(self):
