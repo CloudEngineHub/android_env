@@ -1,0 +1,6 @@
+exports_files(["requirements.txt"])
+
+alias(
+    name = "android_env_wheel",
+    actual = "//android_env:android_env_wheel",
+)

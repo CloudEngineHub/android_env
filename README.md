@@ -101,12 +101,19 @@ $ python3 -m pip install android-env
 
 Please note that `/examples` are not included in this package.
 
-Alternatively, you can clone the repository from git's `main` branch:
+Alternatively, you can clone the repository from git's `main` branch and test or
+build with Bazel:
 
 ```shell
 $ git clone https://github.com/google-deepmind/android_env/
 $ cd android_env
-$ python3 -m pip install .
+$ bazel test //...
+```
+
+To build the PyPI wheel locally using Bazel:
+
+```shell
+$ bazel build //:android_env_wheel
 ```
 
 Update: the environment now runs on Windows, but please keep in mind that this
