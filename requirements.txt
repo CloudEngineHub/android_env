@@ -12,3 +12,5 @@ farama-notifications==0.0.4
 typing-extensions==4.11.0
 psutil==5.9.8
 dm-tree
+attrs>=18.2.0
+wrapt>=1.11.2
