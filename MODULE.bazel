@@ -5,7 +5,6 @@ module(
 
 # Core rules
 bazel_dep(name = "rules_python", version = "2.2.0")
-bazel_dep(name = "rules_proto_grpc_python", version = "5.8.0")
 bazel_dep(name = "protobuf", version = "31.1")
 bazel_dep(name = "rules_proto", version = "6.0.2")
 

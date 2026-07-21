@@ -1,6 +1,16 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+
 exports_files(["requirements.txt"])
 
 alias(
     name = "android_env_wheel",
     actual = "//android_env:android_env_wheel",
+)
+
+py_binary(
+    name = "protoc_runner",
+    srcs = ["protoc_runner.py"],
+    main = "protoc_runner.py",
+    visibility = ["//visibility:public"],
+    deps = ["@pip//grpcio_tools"],
 )
