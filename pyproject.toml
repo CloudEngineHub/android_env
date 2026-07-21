@@ -15,14 +15,14 @@ readme = {text = "Read the README at https://github.com/deepmind/android_env for
 keywords = ["Android", "OS", "reinforcement-learning"]
 requires-python = ">=3.10"
 dependencies = [
-    "absl-py>=0.1.0",
-    "dm_env",
-    "grpcio",
-    "numpy>=1.21",
-    "portpicker>=1.2.0",
-    "protobuf>=2.6",
-    "pygame",
-    "pillow",
+    "absl-py>=2.1.0",
+    "dm_env>=1.6",
+    "grpcio>=1.70.0",
+    "numpy>=2.1.0",
+    "portpicker>=1.6.0",
+    "protobuf>=6,<8",
+    "pygame>=2.6.0",
+    "pillow>=10.4.0",
 ]
 
 [project.optional-dependencies]
