@@ -191,8 +191,11 @@ class Coordinator:
   def rl_reset(self) -> dm_env.TimeStep:
     """Resets the RL episode."""
 
-    # Relaunch the simulator if necessary.
-    if not self._simulator_healthy or self._should_periodic_relaunch():
+    if (
+        not self._simulator_healthy
+        or not self._task_manager.is_healthy()
+        or self._should_periodic_relaunch()
+    ):
       self._launch_simulator()
 
     # Reset counters.

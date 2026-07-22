@@ -26,7 +26,9 @@ from android_env.components import adb_call_parser
 from android_env.components import config_classes
 from android_env.components import coordinator as coordinator_lib
 from android_env.components import device_settings as device_settings_lib
+from android_env.components import dumpsys_thread
 from android_env.components import errors
+from android_env.components import logcat_thread
 from android_env.components import task_manager
 from android_env.components.simulators import base_simulator
 from android_env.proto import adb_pb2
@@ -277,6 +279,66 @@ class CoordinatorTest(parameterized.TestCase):
 
     self.assertEqual(response, expected_response)
     self._adb_call_parser.parse.assert_called_with(call)
+
+  @mock.patch.object(time, 'sleep', autospec=True)
+  def test_reset_unhealthy_task_manager(self, unused_mock_sleep):
+    """rl_reset should relaunch simulator if task_manager is unhealthy."""
+    self._task_manager.is_healthy.return_value = False
+    relaunch_count = self._coordinator.stats()['relaunch_count']
+    self._coordinator.rl_reset()
+    self.assertEqual(
+        self._coordinator.stats()['relaunch_count'], relaunch_count + 1
+    )
+
+  @mock.patch.object(time, 'sleep', autospec=True)
+  def test_max_bad_states_triggers_relaunch(self, unused_mock_sleep):
+    """Verifies that consecutive bad states cause Coordinator to relaunch simulator."""
+    dumpsys = mock.create_autospec(dumpsys_thread.DumpsysThread)
+    dumpsys.check_user_exited.return_value = True
+    self.enter_context(
+        mock.patch.object(
+            dumpsys_thread, 'DumpsysThread', return_value=dumpsys
+        )
+    )
+    self.enter_context(
+        mock.patch.object(
+            logcat_thread, 'LogcatThread', autospec=True
+        )
+    )
+
+    real_task_manager = task_manager.TaskManager(
+        task=task_pb2.Task(),
+        config=config_classes.TaskManagerConfig(max_bad_states=2),
+    )
+    coordinator = coordinator_lib.Coordinator(
+        simulator=self._simulator,
+        task_manager=real_task_manager,
+        device_settings=device_settings_lib.DeviceSettings(self._simulator),
+    )
+    self.addCleanup(coordinator.close)
+
+    # Initial launch.
+    coordinator._launch_simulator()
+    self._simulator.launch.reset_mock()
+
+    # Episode 1 bad state: user exits task.
+    coordinator.rl_reset()
+    coordinator.rl_step({
+        'action_type': np.array(action_type.ActionType.TOUCH),
+        'touch_position': np.array([0.5, 0.5]),
+    })
+    # After 1st bad state, simulator is NOT relaunched yet.
+    coordinator.rl_reset()
+    self._simulator.launch.assert_not_called()
+
+    # Episode 2 bad state: user exits task again (2 >= max_bad_states=2).
+    coordinator.rl_step({
+        'action_type': np.array(action_type.ActionType.TOUCH),
+        'touch_position': np.array([0.5, 0.5]),
+    })
+    # Now max_bad_states is exceeded. Reset MUST trigger _launch_simulator().
+    coordinator.rl_reset()
+    self._simulator.launch.assert_called_once()
 
 
 if __name__ == '__main__':

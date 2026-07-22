@@ -104,6 +104,12 @@ class TaskManager:
       output.update(self._setup_step_interpreter.stats())
     return output
 
+  def is_healthy(self) -> bool:
+    """Returns True if task manager has not exceeded max bad states."""
+    if self._config.max_bad_states:
+      return self._bad_state_counter < self._config.max_bad_states
+    return True
+
   def setup_task(self) -> None:
     """Performs one-off task setup.."""
     assert self._setup_step_interpreter is not None, (
@@ -132,6 +138,8 @@ class TaskManager:
   ) -> None:
     """Starts task processing."""
 
+    self._bad_state_counter = 0
+    self._is_bad_episode = False
     self._start_logcat_thread(log_stream=log_stream)
     assert (
         self._logcat_thread is not None
@@ -316,9 +324,13 @@ class TaskManager:
       self._bad_state_counter += 1
       logging.warning('Bad state counter: %d.', self._bad_state_counter)
       if self._bad_state_counter >= self._config.max_bad_states:
-        logging.error('Too many consecutive bad states. Restarting simulator.')
+        logging.error(
+            'Too many consecutive bad states (%d >= %d). Task manager is'
+            ' unhealthy.',
+            self._bad_state_counter,
+            self._config.max_bad_states,
+        )
         self._stats['restart_count_max_bad_states'] += 1
-        self._should_restart = True
     else:
       logging.warning('Max bad states not set, bad states will be ignored.')
 

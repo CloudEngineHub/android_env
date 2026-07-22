@@ -530,6 +530,31 @@ class TaskManagerTest(parameterized.TestCase):
     extras = timestep.observation['extras']
     np.testing.assert_almost_equal([2, 3], extras['overflow_extra'])
 
+  def test_is_healthy_and_max_bad_states(self):
+    config = config_classes.TaskManagerConfig(max_bad_states=2)
+    task_mgr = task_manager.TaskManager(task=task_pb2.Task(), config=config)
+    adb_call_parser = mock.create_autospec(adb_call_parser_lib.AdbCallParser)
+    task_mgr.start(lambda: adb_call_parser, log_stream=self._log_stream)
+    task_mgr.setup_task()
+
+    # Initially healthy.
+    self.assertTrue(task_mgr.is_healthy())
+
+    # User exits once (1 bad state).
+    self._dumpsys_thread.check_user_exited.return_value = True
+    task_mgr.rl_reset(observation={})
+    task_mgr.rl_step(observation={})
+    self.assertTrue(task_mgr.is_healthy())
+
+    # User exits second time (2 bad states >= max_bad_states).
+    task_mgr.rl_reset(observation={})
+    task_mgr.rl_step(observation={})
+    self.assertFalse(task_mgr.is_healthy())
+
+    # Start clears bad state counter, restoring health.
+    task_mgr.start(lambda: adb_call_parser, log_stream=self._log_stream)
+    self.assertTrue(task_mgr.is_healthy())
+
 
 if __name__ == '__main__':
   absltest.main()
